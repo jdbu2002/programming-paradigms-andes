@@ -1,5 +1,6 @@
 declare fun {ObjectBuilder Name AttrsTuples}
   local 
+    Attributes
     InnerAttributes 
 
     fun {UpdateAttributes AttrsTuples}
@@ -9,7 +10,26 @@ declare fun {ObjectBuilder Name AttrsTuples}
         for Entry in AttrsTuples do
           case Entry of
             Name#Value then
-              Attrs := {Record.adjoin @Attrs attributes(Name:Value)}
+              if {Procedure.is Value} then
+                local 
+                  proc {NewFun Params ?R}
+                    local Appended = {List.append
+                      {List.append [@InnerAttributes] Params}
+                      [R]
+                    }
+                    in
+                      {Procedure.apply Value Appended}
+                    end
+                  end
+                in
+                  Attrs := {Record.adjoin
+                    @Attrs
+                    attributes(Name:NewFun)
+                  }
+                end
+              else
+                Attrs := {Record.adjoin @Attrs attributes(Name:Value)}
+              end
           end
         end
 
@@ -19,14 +39,25 @@ declare fun {ObjectBuilder Name AttrsTuples}
   in
     InnerAttributes = {NewCell {UpdateAttributes AttrsTuples}}
 
-    {Record.adjoin @InnerAttributes Name()}
+    proc {Attributes ?R}
+      R = @InnerAttributes
+    end
+
+    {Record.adjoin @InnerAttributes Name(attributes:Attributes)}
   end
 end
 
-{Show {ObjectBuilder employer [
+Employee = {ObjectBuilder employer [
   name#"David"
   address#"Cra 24 # 1 - 135"
-  getName#fun {$ This} This.name end
-  getName#fun {$ This} This.name end
-  getName#fun {$ This} This.name end
-]}}
+  getName#proc {$ This ?R} R = This.name end
+  getAddress#proc {$ This ?R} R = This.address end
+  display#proc {$ This ?R} 
+    {System.showInfo "Employer"}
+    {System.showInfo "Name: " # This.name}
+    {System.showInfo "Address: " # This.address}
+  end
+]}
+
+{Employee.display nil _}
+{System.showInfo {Employee.getName nil $}}
