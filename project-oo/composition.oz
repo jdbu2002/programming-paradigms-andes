@@ -20,7 +20,7 @@ declare fun {Employer InitialName InitialAddress}
       )
     end
     proc {Name ?R} R = @InnerName end
-    proc {Address ?R} R =@InnerAddress end
+    proc {Address ?R} R = @InnerAddress end
 
     proc {Display ?R}
       {System.showInfo "Employer"}
@@ -77,7 +77,7 @@ declare Per = {Person "Lucas" "Trabajador"}
 
 fun {ExplicitComposition ObjList}
   local
-    Final = {NewCell none()}
+    Final = {NewCell composed()}
 
     fun {Attributes Value} 
       proc {$ ?R}
@@ -139,8 +139,69 @@ fun {ImplicitComposition ObjList}
   end
 end
 
-declare Comp = {ExplicitComposition [Emp Per]}
-declare Comp2 = {ImplicitComposition [Emp Per]}
+fun {ExplicitCompositionPoly ObjList}
+  local
+    Final = {NewCell composed()}
 
-{System.showInfo {Comp2 getName _ $}}
-{Show {Comp2 lel _ $}}
+    fun {Attributes Value} 
+      proc {$ ?R}
+        R = {Record.adjoin Value attributes()}
+      end
+    end
+  in
+    for Obj in {List.reverse ObjList} do
+      local 
+        AttrsList = {Record.toListInd {Obj.attributes}}
+        Attributes
+        Methods
+      in
+        {List.partition
+          AttrsList
+          fun {$ Item}
+            case Item of
+              _#Value then
+                {Procedure.is Value}
+              else
+                false
+              end
+          end
+          Methods
+          Attributes
+        }
+        % Adjoin takes precedence in the second attribute
+        Final := {Record.adjoin @Final {List.toRecord composed Attributes}}
+
+        for MethodItem in Methods do
+          case MethodItem of
+            Name#Method then
+              if {Value.hasFeature @Final Name} then
+                Final := {Record.adjoin @Final composed(Name:{List.append
+                  (@Final).Name
+                  [Method]
+                })}
+              else
+                Final := {Record.adjoin @Final composed(Name:[Method])}
+              end
+          end
+        end
+      end
+    end
+
+    Final := {Record.adjoin @Final composed(attributes:{Attributes @Final})}
+    
+    @Final
+  end
+end
+
+declare Comp = {ExplicitComposition [Per Emp]}
+declare Comp2 = {ImplicitComposition [Per Emp]}
+declare Comp3 = {ExplicitCompositionPoly [Per Emp]}
+
+
+{Show {Comp3.attributes $}}
+% {Comp.display _}
+% {System.showInfo }
+
+% {System.showInfo {Comp2 getName _ $}}
+% {Comp2 display _ _}
+% {Show {Comp2 lel _ $}}
