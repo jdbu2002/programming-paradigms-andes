@@ -73,6 +73,10 @@ Employee = {ObjectBuilder employer [
   name#"David"
   address#"Cra 24 # 1 - 135"
   getName#proc {$ This ?R} R = @((@This).name) end
+  setName#proc {$ This Name ?R} 
+    ((@This).name) := Name
+    R = true
+  end
   getAddress#proc {$ This ?R} R = @((@This).address) end
   display#proc {$ This ?R} 
     {System.showInfo "Employer"}
