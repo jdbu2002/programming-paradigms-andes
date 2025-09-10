@@ -1,4 +1,4 @@
-% -- Extra funcions --
+% -- Extra functions --
 declare fun {WithDefault X Default}
   %% If a variable is unbound set a default value
   %% Input: X :: T
@@ -17,7 +17,7 @@ end
 declare HasNextCalled = {NewCell false}
 
 declare proc {NextFunction}
-  %% Just update the cell global value for next-ing function
+  %% Just update the cell global value for next-ing a function
   HasNextCalled := true
 end
 
@@ -93,9 +93,10 @@ end
 
 % Task 2 - Implement Explicit Composition
 declare fun {ExplicitComposition ObjList}
-  %% Compose a list of object into a new record that ontains the fusion of all %% the attributes mantaing precedence by the leftmost element in the array
-  %% Input: ObjList :: [Bundled Objects]
-  %% Output: Object - A new composed object
+  %% Compose a list of object into a new record that contains the fusion of all 
+  %% the attributes mantaing precedence by the leftmost element in the array
+  %% Input: ObjList :: [Record (Bundled Objects)]
+  %% Output: Record - A new composed object
 
   local
     Final = {NewCell composed()}
@@ -122,13 +123,13 @@ end
 % Implicit Compositions is not an object in a record representation
 % But like a function with a simple dispatcher
 declare fun {ImplicitComposition ObjList}
-  %% Compose a list of object into a function "dispatcher" that can lookup th
-  %% attributes of the objects priorizing the leftmost one lazily
-  %% Input: ObjList :: [Bundled Objects]
+  %% Compose a list of object into a function "dispatcher" that can lookup the
+  %% attributes of the objects priorizing the leftmost one lazily.
+  %% Input: ObjList :: [Record (Bundled Objects)]
   %% Output: Procedure - The "dispatcher" function to find and locate the
-  %% attributes / methods lazily
+  %% attributes / methods lazily.
   %% Raises: doNotUnderstand - If the key provided is not part of the composed
-  %%          object
+  %%          object.
 
   proc {$ Key Params ?R}
     if Key == attributes then
@@ -171,11 +172,12 @@ end
 
 % Task 4 - Implement Explicit Composition saving all Methods in Lists
 declare fun {ExplicitCompositionPoly ObjList}
-  %% Compose a list of object into a new record that ontains the fusion of all %% the attributes mantaing precedence by the leftmost element in the array.
+  %% Compose a list of object into a new record that contains the fusion of all 
+  %% the attributes mantaing precedence by the leftmost element in the array.
   %% The main difference is now that methods are saved in a list to allow
-  %% method overloading and avoid clashes
-  %% Input: ObjList :: [Bundled Objects]
-  %% Output: Object - A new composed object
+  %% method overloading and avoid clashes.
+  %% Input: ObjList :: [Record (Bundled Objects)]
+  %% Output: Record - A new composed object
 
   local
     Final = {NewCell composed()}
@@ -237,7 +239,7 @@ declare proc {Dispatch Obj Key Params Index}
   %% Use the index to choose what method want to execute, and also add the logic
   %% to use next-ify the next function in the list from inside method
   %% definition.
-  %% Input: Obj :: Bundled Object
+  %% Input: Obj :: Record (Composed by ExplicitPoly)
   %%        Key :: Atom representing the key of the method
   %%        Params :: The params that will be used in the method
   %%        Index :: A natural number choosing the Index of the list of the 
