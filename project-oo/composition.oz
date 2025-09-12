@@ -91,6 +91,32 @@ declare fun {Person InitialName InitialEmployer}
   end
 end
 
+declare fun {Cat InitialName}
+  local
+    InnerName = {NewCell InitialName}
+
+    proc {Attributes ?R} 
+      R = attributes(
+        name:InnerName
+        display:Display
+      )
+    end
+
+    proc {Display ?R}
+      {System.showInfo "Cat"}
+      {System.showInfo "Name: " # @InnerName}
+      {System.showInfo "Meows"}
+      {NextFunction}
+    end
+  in
+    cat(
+      attributes:Attributes
+      name:InnerName
+      display:Display
+    )
+  end
+end
+
 % Task 2 - Implement Explicit Composition
 declare fun {ExplicitComposition ObjList}
   %% Compose a list of object into a new record that contains the fusion of all 
@@ -130,43 +156,45 @@ declare fun {ImplicitComposition ObjList}
   %% attributes / methods lazily.
   %% Raises: doNotUnderstand - If the key provided is not part of the composed
   %%          object.
+  local 
+    Attributes = {{ExplicitComposition ObjList}.attributes}
 
-  proc {$ Key Params ?R}
-    if Key == attributes then
-      % Reuse the code to get the attributes list only
-      R = {{ExplicitComposition ObjList}.attributes}
-    else
-      
-      local 
-        % Filter the one who has the feature in the list
-        FirstInstance = {List.filter
-          ObjList
-          fun {$ X} {Value.hasFeature X Key} end
-        }
-      in
-        case FirstInstance of
-          % Use the first one and execute it
-          First | _ then
-            if {Procedure.is First.Key} then
-              local Appended = {List.append
-                {WithDefault Params nil}
-                [R]
-              }
-              in
-                % Apply if procedure
-                {Procedure.apply First.Key Appended}
+    proc {Eval Key ?R}
+      if Key == attributes then
+        % Reuse the code to get the attributes list only
+        R = Attributes
+      else
+        local 
+          % Filter the one who has the feature in the list
+          FirstInstance = {List.filter
+            ObjList
+            fun {$ X} {Value.hasFeature X Key} end
+          }
+        in
+          case FirstInstance of
+            % Use the first one and execute it
+            First | _ then
+              if {Procedure.is First.Key} then
+                R = First.Key
+              else
+                % In this case if not procedure it means it's an attribute
+                % We return the value (We can also return the cell directly)
+                R = @(First.Key)
               end
-            else
-              % In this case if not procedure it means it's an attribute
-              % We return the value (We can also return the cell directly)
-              R = @(First.Key)
-            end
-          else 
-            % We raise an exception
-            raise doNotUnderstand(Key) end
+            else 
+              % We raise an exception
+              raise doNotUnderstand(Key) end
+          end
         end
       end
     end
+  in
+    composed(
+      eval:Eval
+      attributes:proc {$ ?R} 
+        R = Attributes
+      end
+    )
   end
 end
 
@@ -199,7 +227,15 @@ declare fun {ExplicitCompositionPoly ObjList}
           fun {$ Item}
             case Item of
               _#Value then
-                {Procedure.is Value}
+                if {Procedure.is Value} then
+                  true
+                elseif {List.is Value} andthen
+                  {List.all Value fun {$ X} {Procedure.is X} end}
+                then
+                  true
+                else 
+                  false
+                end
               else
                 false
               end
@@ -207,6 +243,8 @@ declare fun {ExplicitCompositionPoly ObjList}
           Methods
           Attributes
         }
+
+        
         % Adjoin takes precedence in the second attribute
         Final := {Record.adjoin @Final {List.toRecord composed Attributes}}
 
@@ -215,12 +253,35 @@ declare fun {ExplicitCompositionPoly ObjList}
           case MethodItem of
             Name#Method then
               if {Value.hasFeature @Final Name} then
-                Final := {Record.adjoin @Final composed(Name:{List.append
-                  [Method]
-                  (@Final).Name
-                })}
+                local
+                  FinalMethod
+                in
+                  if {List.is Method} then
+                    FinalMethod = Method
+                  else 
+                    FinalMethod = [Method]
+                  end
+
+                  Final := {Record.adjoin
+                    @Final
+                    composed(Name:{List.append
+                      FinalMethod
+                      (@Final).Name
+                    })
+                  }
+                end
               else
-                Final := {Record.adjoin @Final composed(Name:[Method])}
+                local
+                  FinalMethod
+                in
+                  if {List.is Method} then
+                    FinalMethod = Method
+                  else 
+                    FinalMethod = [Method]
+                  end
+
+                  Final := {Record.adjoin @Final composed(Name:FinalMethod)}
+                end
               end
           end
         end
@@ -273,22 +334,77 @@ end
 
 declare Emp = {Employer "David" "Cra 24"}
 declare Per = {Person "Lucas" "Trabajador"}
+declare Caty = {Cat "Void"}
 
 declare ExplicitComposed = {ExplicitComposition [Per Emp]}
 declare ImplicitComposed = {ImplicitComposition [Per Emp]}
 declare PolyComposed = {ExplicitCompositionPoly [Per Emp]}
 
-{ExplicitComposed.display _}
+%% Test 1 - Show display
+{System.showInfo "Explicit Composed\n"}
 
-{System.showInfo {ImplicitComposed getName _ $}}
-{ImplicitComposed display _ _}
 
-try
-  {Show {ImplicitComposed lel _ $}}
-catch
-  doNotUnderstand(K) then {System.showInfo "Method not found: " # K }
+local 
+  GetFunction
+  DisplayFunction
+  Name
+in
+  {Show ExplicitComposed}
+
+  GetFunction = {CondSelect ExplicitComposed getName _}
+
+  {GetFunction Name}
+  {System.showInfo Name}
+
+  DisplayFunction = {CondSelect ExplicitComposed display  _}
+  {DisplayFunction _}
 end
 
-{Show {PolyComposed.attributes $}}
+{System.showInfo "\nImplicit Composed\n"}
 
+%% Test 2 - Show getName with Implicit
+{Show ImplicitComposed}
+
+local 
+  GetFunction
+  DisplayFunction
+  NoFunction
+  Name
+in
+  GetFunction = {CondSelect
+    ImplicitComposed
+    getName
+    {ImplicitComposed.eval getName $}
+  } 
+
+  {GetFunction Name}
+  {System.showInfo Name}
+
+  DisplayFunction = {CondSelect
+    ImplicitComposed
+    display
+    {ImplicitComposed.eval display $}
+  }
+
+  {DisplayFunction _}
+
+  try
+    NoFunction = {CondSelect
+      ImplicitComposed
+      noFunction
+      {ImplicitComposed.eval noFunction $}
+    }
+
+    {NoFunction}
+  catch
+    doNotUnderstand(K) then
+      {System.showInfo "Method not found: " # K }
+  end
+end
+
+{System.showInfo "\nExplicit Poly Composed\n"}
+
+%% Test 3 - Show PolyComposed
+{Show PolyComposed}
+{Show {PolyComposed.attributes $}}
 {Dispatch PolyComposed display [_] 1}
